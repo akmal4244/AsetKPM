@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Pengurusan Aset & Inventori</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        primary: '#4f46e5', // Indigo 600
+                        secondary: '#1e293b', // Slate 800
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 h-screen flex overflow-hidden">
+
+    <!-- Sidebar Navigation -->
+    <aside class="w-64 bg-secondary text-white flex flex-col transition-all duration-300 shadow-xl z-20" id="sidebar">
+        <div class="p-6 flex items-center justify-center border-b border-slate-700">
+            <i class="fas fa-boxes text-3xl text-primary mr-3"></i>
+            <h1 class="text-xl font-bold tracking-wider">Aset<span class="text-primary">KPM</span></h1>
+        </div>
+        
+        <nav class="flex-1 mt-6 px-4 space-y-2">
+            <button onclick="switchView('dashboard')" id="nav-dashboard" class="nav-btn w-full flex items-center px-4 py-3 bg-primary text-white rounded-lg transition-colors">
+                <i class="fas fa-chart-pie w-6"></i>
+                <span class="font-medium">Papan Pemuka</span>
+            </button>
+            <button onclick="switchView('inventory')" id="nav-inventory" class="nav-btn w-full flex items-center px-4 py-3 text-slate-300 hover:bg-slate-700 hover:text-white rounded-lg transition-colors">
+                <i class="fas fa-desktop w-6"></i>
+                <span class="font-medium">Inventori Aset</span>
+            </button>
+        </nav>
+
+        <div class="p-4 border-t border-slate-700">
+            <div class="flex items-center">
+                <img src="https://ui-avatars.com/api/?name=Admin+KPM&background=4f46e5&color=fff" alt="User" class="w-10 h-10 rounded-full border-2 border-slate-500">
+                <div class="ml-3">
+                    <p class="text-sm font-semibold text-white">Admin KPM</p>
+                    <p class="text-xs text-slate-400">Pengurus IT</p>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col h-screen overflow-hidden relative">
+        <!-- Top Header -->
+        <header class="h-16 bg-white shadow-sm flex items-center justify-between px-6 z-10">
+            <div class="flex items-center">
+                <button onclick="toggleSidebar()" class="text-slate-500 hover:text-primary focus:outline-none lg:hidden">
+                    <i class="fas fa-bars text-xl"></i>
+                </button>
+                <h2 id="page-title" class="text-xl font-semibold ml-4">Ringkasan Sistem</h2>
+            </div>
+            <div class="text-sm text-slate-500 font-medium">
+                <i class="far fa-calendar-alt mr-2"></i><span id="current-date"></span>
+            </div>
+        </header>
+
+        <!-- View: Dashboard -->
+        <div id="view-dashboard" class="flex-1 overflow-y-auto p-6 fade-in">
+            <!-- KPI Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <div class="bg-white rounded-xl shadow-sm p-6 border-l-4 border-primary">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <p class="text-sm text-slate-500 font-medium">Jumlah Aset</p>
+                            <h3 class="text-3xl font-bold text-slate-800 mt-1" id="kpi-total">0</h3>
+                        </div>
+                        <div class="p-3 bg-indigo-50 rounded-full"><i class="fas fa-boxes text-primary text-xl"></i></div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm p-6 border-l-4 border-emerald-500">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <p class="text-sm text-slate-500 font-medium">Status Aktif</p>
+                            <h3 class="text-3xl font-bold text-slate-800 mt-1" id="kpi-aktif">0</h3>
+                        </div>
+                        <div class="p-3 bg-emerald-50 rounded-full"><i class="fas fa-check-circle text-emerald-500 text-xl"></i></div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm p-6 border-l-4 border-amber-500">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <p class="text-sm text-slate-500 font-medium">Sedang Dibaiki</p>
+                            <h3 class="text-3xl font-bold text-slate-800 mt-1" id="kpi-baiki">0</h3>
+                        </div>
+                        <div class="p-3 bg-amber-50 rounded-full"><i class="fas fa-tools text-amber-500 text-xl"></i></div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm p-6 border-l-4 border-rose-500">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <p class="text-sm text-slate-500 font-medium">Lupus / Rosak</p>
+                            <h3 class="text-3xl font-bold text-slate-800 mt-1" id="kpi-lupus">0</h3>
+                        </div>
+                        <div class="p-3 bg-rose-50 rounded-full"><i class="fas fa-trash-alt text-rose-500 text-xl"></i></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-white rounded-xl shadow-sm p-6">
+                    <h3 class="text-lg font-semibold mb-4 text-slate-700">Taburan Jenis Peranti</h3>
+                    <div class="h-64 relative">
+                        <canvas id="deviceTypeChart"></canvas>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm p-6">
+                    <h3 class="text-lg font-semibold mb-4 text-slate-700">Status Peranti Mengikut Lokasi</h3>
+                    <div class="h-64 relative">
+                        <canvas id="statusChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- View: Inventory -->
+        <div id="view-inventory" class="flex-1 overflow-y-auto p-6 hidden fade-in">
+            <div class="bg-white rounded-xl shadow-sm overflow-hidden flex flex-col">
+                <!-- Toolbar -->
+                <div class="p-5 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-4">
+                    <div class="relative w-full sm:w-72">
+                        <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
+                        <input type="text" id="searchInput" placeholder="Cari no siri, pengguna..." class="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm">
+                    </div>
+                    <button onclick="openModal()" class="w-full sm:w-auto bg-primary hover:bg-indigo-700 text-white px-5 py-2 rounded-lg font-medium transition-colors shadow-sm flex items-center justify-center">
+                        <i class="fas fa-plus mr-2"></i> Tambah Aset
+                    </button>
+                </div>
+                
+                <!-- Table -->
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50 text-slate-500 text-sm uppercase tracking-wider">
+                                <th class="p-4 font-medium border-b border-slate-200">No. Aset</th>
+                                <th class="p-4 font-medium border-b border-slate-200">Jenis & Jenama</th>
+                                <th class="p-4 font-medium border-b border-slate-200">Pengguna / Lokasi</th>
+                                <th class="p-4 font-medium border-b border-slate-200">Status</th>
+                                <th class="p-4 font-medium border-b border-slate-200 text-center">Tindakan</th>
+                            </tr>
+                        </thead>
+                        <tbody id="inventory-table-body" class="text-sm divide-y divide-slate-100">
+                            <!-- Rows will be populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Empty State (Hidden by default) -->
+                <div id="empty-state" class="hidden flex-col items-center justify-center py-12 text-slate-400">
+                    <i class="fas fa-box-open text-4xl mb-3"></i>
+                    <p>Tiada data aset dijumpai.</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal Form (Tambah/Edit) -->
+    <div id="asset-modal" class="fixed inset-0 bg-slate-900 bg-opacity-50 z-50 hidden flex items-center justify-center backdrop-blur-sm">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all">
+            <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <h3 id="modal-title" class="text-lg font-semibold text-slate-800">Tambah Aset Baru</h3>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-rose-500 focus:outline-none">
+                    <i class="fas fa-times text-lg"></i>
+                </button>
+            </div>
+            <form id="asset-form" class="p-6">
+                <input type="hidden" id="asset-id">
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">No. Siri / No. Aset</label>
+                        <input type="text" id="form-noAset" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm" placeholder="Contoh: KPM/LPT/001">
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Jenis Peranti</label>
+                            <select id="form-jenis" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm bg-white">
+                                <option value="Komputer Riba">Komputer Riba</option>
+                                <option value="PC Desktop">PC Desktop</option>
+                                <option value="Pencetak">Pencetak</option>
+                                <option value="Projektor">Projektor</option>
+                                <option value="Tablet">Tablet</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Jenama/Model</label>
+                            <input type="text" id="form-jenama" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm" placeholder="Contoh: HP ProBook">
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Pengguna / Lokasi</label>
+                        <input type="text" id="form-pengguna" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm" placeholder="Nama Pegawai atau Bilik">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Status</label>
+                        <select id="form-status" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm bg-white">
+                            <option value="Aktif">Aktif (Baik)</option>
+                            <option value="Dibaiki">Sedang Dibaiki</option>
+                            <option value="Lupus">Lupus / Rosak Kritis</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="mt-6 flex justify-end gap-3 border-t border-slate-100 pt-4">
+                    <button type="button" onclick="closeModal()" class="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">Batal</button>
+                    <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-indigo-700 rounded-lg transition-colors shadow-sm">Simpan Rekod</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Sistem Logik (JavaScript) -->
+    <script>
+        // --- 1. PENGURUSAN DATA (MOCK DATA) ---
+        let assets = [
+            { id: 1, noAset: "BPSM/LPT/001", jenis: "Komputer Riba", jenama: "Lenovo ThinkPad", pengguna: "Ahmad Albab (Unit Kewangan)", status: "Aktif" },
+            { id: 2, noAset: "BPSM/PRT/012", jenis: "Pencetak", jenama: "HP LaserJet Pro", pengguna: "Bilik Mesyuarat Utama", status: "Aktif" },
+            { id: 3, noAset: "BPSM/PC/045", jenis: "PC Desktop", jenama: "Dell OptiPlex", pengguna: "Siti Nurhaliza (Pentadbiran)", status: "Dibaiki" },
+            { id: 4, noAset: "BPSM/PRO/003", jenis: "Projektor", jenama: "Epson", pengguna: "Bilik Latihan ICT", status: "Aktif" },
+            { id: 5, noAset: "BPSM/TAB/009", jenis: "Tablet", jenama: "Apple iPad", pengguna: "Pengarah", status: "Lupus" }
+        ];
+
+        let typeChartInstance = null;
+        let statusChartInstance = null;
+
+        // Set Tarikh Hari Ini
+        const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        document.getElementById('current-date').textContent = new Date().toLocaleDateString('ms-MY', dateOptions);
+
+        // --- 2. LOGIK NAVIGASI ---
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            if (sidebar.classList.contains('-ml-64')) {
+                sidebar.classList.remove('-ml-64');
+                sidebar.classList.add('absolute', 'h-full');
+            } else {
+                sidebar.classList.add('-ml-64');
+                setTimeout(() => sidebar.classList.remove('absolute', 'h-full'), 300);
+            }
+        }
+
+        function switchView(viewName) {
+            // Sembunyikan semua view
+            document.getElementById('view-dashboard').classList.add('hidden');
+            document.getElementById('view-inventory').classList.add('hidden');
+            
+            // Tunjukkan view dipilih
+            document.getElementById('view-' + viewName).classList.remove('hidden');
+            
+            // Kemas kini tajuk
+            document.getElementById('page-title').textContent = viewName === 'dashboard' ? 'Ringkasan Sistem' : 'Pengurusan Inventori';
+            
+            // Kemas kini gaya butang Navigasi
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('bg-primary', 'text-white');
+                btn.classList.add('text-slate-300', 'hover:bg-slate-700', 'hover:text-white');
+            });
+            const activeBtn = document.getElementById('nav-' + viewName);
+            activeBtn.classList.remove('text-slate-300', 'hover:bg-slate-700');
+            activeBtn.classList.add('bg-primary', 'text-white');
+
+            // Render spesifik view
+            if(viewName === 'dashboard') updateDashboard();
+            if(viewName === 'inventory') renderTable();
+        }
+
+        // --- 3. LOGIK PAPAN PEMUKA & CARTA ---
+        function updateDashboard() {
+            // Kira metrik KPI
+            const total = assets.length;
+            const aktif = assets.filter(a => a.status === 'Aktif').length;
+            const baiki = assets.filter(a => a.status === 'Dibaiki').length;
+            const lupus = assets.filter(a => a.status === 'Lupus').length;
+
+            // Update UI KPI
+            document.getElementById('kpi-total').textContent = total;
+            document.getElementById('kpi-aktif').textContent = aktif;
+            document.getElementById('kpi-baiki').textContent = baiki;
+            document.getElementById('kpi-lupus').textContent = lupus;
+
+            // Kemas kini Carta
+            renderCharts();
+        }
+
+        function renderCharts() {
+            // Pemprosesan Data untuk Carta Jenis
+            const typeCounts = {};
+            assets.forEach(a => { typeCounts[a.jenis] = (typeCounts[a.jenis] || 0) + 1; });
+            
+            // Carta Jenis Peranti (Doughnut)
+            const ctxType = document.getElementById('deviceTypeChart').getContext('2d');
+            if (typeChartInstance) typeChartInstance.destroy(); // Padam carta lama sebelum render baru
+            
+            typeChartInstance = new Chart(ctxType, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(typeCounts),
+                    datasets: [{
+                        data: Object.values(typeCounts),
+                        backgroundColor: ['#4f46e5', '#3b82f6', '#0ea5e9', '#10b981', '#f59e0b'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'right' } },
+                    cutout: '70%'
+                }
+            });
+
+            // Pemprosesan Data untuk Carta Status (Simple Bar)
+            const statusCounts = { 'Aktif': 0, 'Dibaiki': 0, 'Lupus': 0 };
+            assets.forEach(a => { if(statusCounts[a.status] !== undefined) statusCounts[a.status]++; });
+
+            const ctxStatus = document.getElementById('statusChart').getContext('2d');
+            if (statusChartInstance) statusChartInstance.destroy();
+
+            statusChartInstance = new Chart(ctxStatus, {
+                type: 'bar',
+                data: {
+                    labels: ['Aktif', 'Dibaiki', 'Lupus'],
+                    datasets: [{
+                        label: 'Jumlah Peranti',
+                        data: [statusCounts['Aktif'], statusCounts['Dibaiki'], statusCounts['Lupus']],
+                        backgroundColor: ['#10b981', '#f59e0b', '#f43f5e'],
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, ticks: { stepSize: 1 } },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+        }
+
+        // --- 4. LOGIK INVENTORI (CRUD) ---
+        function renderTable(searchQuery = '') {
+            const tbody = document.getElementById('inventory-table-body');
+            const emptyState = document.getElementById('empty-state');
+            tbody.innerHTML = ''; // Kosongkan jadual
+
+            // Filter data berdasarkan carian
+            const filteredAssets = assets.filter(asset => 
+                asset.noAset.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                asset.pengguna.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                asset.jenis.toLowerCase().includes(searchQuery.toLowerCase())
+            );
+
+            if (filteredAssets.length === 0) {
+                emptyState.classList.remove('hidden');
+                emptyState.classList.add('flex');
+            } else {
+                emptyState.classList.add('hidden');
+                emptyState.classList.remove('flex');
+
+                filteredAssets.forEach(asset => {
+                    // Penentuan warna lencana (badge) status
+                    let statusColor = 'bg-emerald-100 text-emerald-700';
+                    if (asset.status === 'Dibaiki') statusColor = 'bg-amber-100 text-amber-700';
+                    if (asset.status === 'Lupus') statusColor = 'bg-rose-100 text-rose-700';
+
+                    const tr = document.createElement('tr');
+                    tr.className = 'hover:bg-slate-50 transition-colors';
+                    tr.innerHTML = `
+                        <td class="p-4 font-medium text-slate-800">${asset.noAset}</td>
+                        <td class="p-4">
+                            <div class="font-medium text-slate-800">${asset.jenis}</div>
+                            <div class="text-xs text-slate-500">${asset.jenama}</div>
+                        </td>
+                        <td class="p-4 text-slate-600">${asset.pengguna}</td>
+                        <td class="p-4">
+                            <span class="px-3 py-1 rounded-full text-xs font-semibold ${statusColor}">${asset.status}</span>
+                        </td>
+                        <td class="p-4 text-center">
+                            <button onclick="editAsset(${asset.id})" class="text-slate-400 hover:text-primary mx-1 p-2" title="Kemaskini">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button onclick="deleteAsset(${asset.id})" class="text-slate-400 hover:text-rose-500 mx-1 p-2" title="Padam">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+        }
+
+        // Carian Real-time
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            renderTable(e.target.value);
+        });
+
+        // --- 5. LOGIK MODAL & BORANG ---
+        const modal = document.getElementById('asset-modal');
+        const form = document.getElementById('asset-form');
+
+        function openModal(isEdit = false) {
+            document.getElementById('modal-title').textContent = isEdit ? 'Kemaskini Aset' : 'Tambah Aset Baru';
+            if (!isEdit) form.reset(); // Kosongkan borang jika tambah baru
+            modal.classList.remove('hidden');
+        }
+
+        function closeModal() {
+            modal.classList.add('hidden');
+        }
+
+        // Proses Submit Borang
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            const idInput = document.getElementById('asset-id').value;
+            const newAsset = {
+                noAset: document.getElementById('form-noAset').value,
+                jenis: document.getElementById('form-jenis').value,
+                jenama: document.getElementById('form-jenama').value,
+                pengguna: document.getElementById('form-pengguna').value,
+                status: document.getElementById('form-status').value
+            };
+
+            if (idInput) {
+                // Mod Kemaskini (Update)
+                const index = assets.findIndex(a => a.id == idInput);
+                assets[index] = { ...assets[index], ...newAsset };
+            } else {
+                // Mod Tambah Baru (Create)
+                newAsset.id = Date.now(); // Generate ID unik
+                assets.push(newAsset);
+            }
+
+            closeModal();
+            renderTable(); // Kemas kini jadual
+            updateDashboard(); // Kemas kini data di papan pemuka di latar belakang
+        });
+
+        function editAsset(id) {
+            const asset = assets.find(a => a.id === id);
+            if (asset) {
+                document.getElementById('asset-id').value = asset.id;
+                document.getElementById('form-noAset').value = asset.noAset;
+                document.getElementById('form-jenis').value = asset.jenis;
+                document.getElementById('form-jenama').value = asset.jenama;
+                document.getElementById('form-pengguna').value = asset.pengguna;
+                document.getElementById('form-status').value = asset.status;
+                openModal(true);
+            }
+        }
+
+        function deleteAsset(id) {
+            if (confirm("Adakah anda pasti untuk memadam rekod aset ini? Data tidak boleh dikembalikan.")) {
+                assets = assets.filter(a => a.id !== id);
+                renderTable();
+                updateDashboard();
+            }
+        }
+
+        // --- MULA SISTEM (Inisialisasi) ---
+        window.onload = () => {
+            updateDashboard(); // Load chart & KPI
+            // Default view dipaparkan (Dashboard)
+        };
+
+    </script>
+</body>
+</html>
